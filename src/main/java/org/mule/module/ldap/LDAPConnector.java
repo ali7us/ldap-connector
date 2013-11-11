@@ -48,6 +48,7 @@ import org.mule.module.ldap.api.LDAPSearchControls;
 import org.mule.module.ldap.api.LDAPSingleValueEntryAttribute;
 import org.mule.module.ldap.api.LDAPSortKey;
 import org.mule.module.ldap.api.NameNotFoundException;
+import org.mule.streaming.PagingDelegate;
 import org.mule.util.StringUtils;
 
 /**
@@ -572,6 +573,8 @@ public class LDAPConnector
      * @param returnObject Enables/disables returning objects returned as part of the result. If disabled, only the name and class of the object is returned.
      *                     If enabled, the object will be returned. 
      * @param pageSize If the LDAP server supports paging results set in this attribute the size of the page. If the pageSize is less or equals than 0, then paging will be disabled.
+     * @param orderBy Name of the LDAP attribute used to sort results.
+     * @param ascending If <i>orderBy</i> was set, whether to sort in ascending or descending order.
      * 
      * @return A {@link java.util.List} of {@link LDAPEntry} objects with the results of the search. If the search throws no results, then this is an empty list.
      * @throws org.mule.module.ldap.api.NoPermissionException If the current binded user has no permissions to perform the search under the given base DN.
@@ -581,49 +584,19 @@ public class LDAPConnector
      */
     @Processor
     @InvalidateConnectionOn(exception = CommunicationException.class)
-    public List<LDAPEntry> search(@FriendlyName("Base DN") String baseDn, String filter, @Optional List<String> attributes,
+    public PagingDelegate<LDAPEntry> search(@FriendlyName("Base DN") String baseDn, String filter, @Optional List<String> attributes,
                                   @Optional @Default("ONE_LEVEL") SearchScope scope, @Optional @Default("0") @Placement(group = "Search Controls") int timeout,
                                   @Optional @Default("0") @Placement(group = "Search Controls") long maxResults,
                                   @Optional @Default("false") @Placement(group = "Search Controls") boolean returnObject,
-                                  @Optional @Default("0") @Placement(group = "Search Controls") int pageSize) throws Exception
+                                  @Optional @Default("0") @Placement(group = "Search Controls") int pageSize,
+                                  @FriendlyName("Order by attribute") @Optional @Placement(group = "Search Controls", order = 1) String orderBy,
+                                  @FriendlyName("Ascending order?") @Optional @Default("true") @Placement(group = "Search Controls", order = 2) boolean ascending) throws Exception
     {
         LDAPResultSet result = null;
-        try
-        {
-            if(logger.isDebugEnabled())
-            {
-                logger.debug("About to search LDAP entries matching " + filter + " under: " + baseDn);
-            }
-            
-            LDAPSearchControls controls = new LDAPSearchControls();
-            if(attributes != null && attributes.size() > 0)
-            {
-                controls.setAttributesToReturn(attributes.toArray(new String[0]));
-            }
-            controls.setMaxResults(maxResults);
-            controls.setTimeout(timeout);
-            controls.setScope(scope.getValue());
-            controls.setReturnObject(returnObject);
-            controls.setPageSize(pageSize);
-            
-            result = this.connection.search(baseDn, filter, controls);
-            
-            List<LDAPEntry> allEntries = result.getAllEntries();
-            
-            if(logger.isDebugEnabled())
-            {
-                logger.debug("Retrieved " + allEntries.size() + " entries");
-            }
-            
-            return allEntries;        
-        }
-        finally
-        {
-            if(result != null)
-            {
-                result.close();
-            }
-        }
+        
+        result = doSearch(baseDn, filter, attributes, scope, timeout, maxResults, returnObject, pageSize, orderBy, ascending);
+
+        return new LDAPPagingDelegate(result, pageSize);        
     }
     
     /**
@@ -705,25 +678,10 @@ public class LDAPConnector
             
             if(logger.isDebugEnabled())
             {
-                logger.debug("About to search LDAP entries matching " + filter + " under: " + baseDn + ". Returning results in pages of " + resultPageSize + " entries.");
+                logger.debug("Returning results in pages of " + resultPageSize + " entries.");
             }
-            
-            LDAPSearchControls controls = new LDAPSearchControls();
-            if(attributes != null && attributes.size() > 0)
-            {
-                controls.setAttributesToReturn(attributes.toArray(new String[0]));
-            }
-            controls.setMaxResults(maxResults);
-            controls.setTimeout(timeout);
-            controls.setScope(scope.getValue());
-            controls.setReturnObject(returnObject);
-            controls.setPageSize(pageSize);
-            if(StringUtils.isNotBlank(orderBy))
-            {
-                controls.getSortKeys().add(new LDAPSortKey(orderBy, ascending, null));
-            }
-            
-            result = this.connection.search(baseDn, filter, controls);
+
+            result = doSearch(baseDn, filter, attributes, scope, timeout, maxResults, returnObject, pageSize, orderBy, ascending);
             
             LDAPEntry anEntry = null;
             int entryCount = 0, pageCount = 0;
@@ -817,6 +775,39 @@ public class LDAPConnector
         }        
     }
 
+    private LDAPResultSet doSearch(String baseDn, String filter, List<String> attributes, SearchScope scope, int timeout, long maxResults, boolean returnObject, int pageSize, String orderBy, boolean ascending) throws LDAPException
+    {
+        LDAPResultSet result = null;
+        if(logger.isDebugEnabled())
+        {
+            logger.debug("About to search LDAP entries matching " + filter + " under: " + baseDn + ".");
+        }
+        
+        LDAPSearchControls controls = new LDAPSearchControls();
+        if(attributes != null && attributes.size() > 0)
+        {
+            controls.setAttributesToReturn(attributes.toArray(new String[0]));
+        }
+        controls.setMaxResults(maxResults);
+        controls.setTimeout(timeout);
+        controls.setScope(scope.getValue());
+        controls.setReturnObject(returnObject);
+        controls.setPageSize(pageSize);
+        if(StringUtils.isNotBlank(orderBy))
+        {
+            controls.getSortKeys().add(new LDAPSortKey(orderBy, ascending, null));
+        }
+        
+        result = this.connection.search(baseDn, filter, controls);
+
+        if(logger.isDebugEnabled())
+        {
+            logger.debug("Executed succesfully LDAP search with filter " + filter + " under: " + baseDn);
+        }
+                    
+        return result;
+    }
+    
     /*
      * LDAP doesn't support paging, so all results are always returned. In order to skip
      * pages, the results should be ignored.
@@ -880,7 +871,7 @@ public class LDAPConnector
             logger.debug("Searching entries under " + baseDn + " with filter " + filter);
         }
         
-        List<LDAPEntry> results = search(baseDn, filter, attributes, scope, timeout, maxResults, returnObject, 0);
+        List<LDAPEntry> results = doSearch(baseDn, filter, attributes, scope, timeout, maxResults, returnObject, 0, null, false).getAllEntries();
         
         if(results != null && results.size() > 1)
         {
