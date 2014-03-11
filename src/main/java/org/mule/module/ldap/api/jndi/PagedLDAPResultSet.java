@@ -40,6 +40,7 @@ public class PagedLDAPResultSet implements LDAPResultSet
     private NamingEnumeration<SearchResult> entries = null;
     
     private byte[] cookie = null;
+    private boolean sizeLimitExceeded = false;
     
     /**
      * 
@@ -181,7 +182,7 @@ public class PagedLDAPResultSet implements LDAPResultSet
     {
         try
         {
-            if(this.entries != null)
+            if(!sizeLimitExceeded && this.entries != null)
             {
                 if(!this.entries.hasMore())
                 {
@@ -210,6 +211,7 @@ public class PagedLDAPResultSet implements LDAPResultSet
         catch(SizeLimitExceededException slee)
         {
             logger.warn("Size limit exceeded. Max results is: " + this.controls.getMaxResults(), slee);
+            this.sizeLimitExceeded = true;
             return false;
         }
         catch(NamingException nex)

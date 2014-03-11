@@ -25,6 +25,7 @@ import org.mule.api.annotations.ConnectionIdentifier;
 import org.mule.api.annotations.Connector;
 import org.mule.api.annotations.Disconnect;
 import org.mule.api.annotations.InvalidateConnectionOn;
+import org.mule.api.annotations.Paged;
 import org.mule.api.annotations.Processor;
 import org.mule.api.annotations.Transformer;
 import org.mule.api.annotations.ValidateConnection;
@@ -48,6 +49,7 @@ import org.mule.module.ldap.api.LDAPSearchControls;
 import org.mule.module.ldap.api.LDAPSingleValueEntryAttribute;
 import org.mule.module.ldap.api.LDAPSortKey;
 import org.mule.module.ldap.api.NameNotFoundException;
+import org.mule.streaming.PagingConfiguration;
 import org.mule.streaming.PagingDelegate;
 import org.mule.util.StringUtils;
 
@@ -167,6 +169,8 @@ import org.mule.util.StringUtils;
  * {@sample.config ../../../doc/mule-module-ldap.xml.sample ldap:config-2}
  * <p/>
  * {@sample.config ../../../doc/mule-module-ldap.xml.sample ldap:config-3}
+ * <p/>
+ * {@sample.config ../../../doc/mule-module-ldap.xml.sample ldap:config-4}
  *
  * @author Mariano Capurro (MuleSoft, Inc.)
  */
@@ -575,6 +579,7 @@ public class LDAPConnector
      * @param pageSize If the LDAP server supports paging results set in this attribute the size of the page. If the pageSize is less or equals than 0, then paging will be disabled.
      * @param orderBy Name of the LDAP attribute used to sort results.
      * @param ascending If <i>orderBy</i> was set, whether to sort in ascending or descending order.
+     * @param pagingConfiguration the paging configuration
      * 
      * @return A {@link java.util.List} of {@link LDAPEntry} objects with the results of the search. If the search throws no results, then this is an empty list.
      * @throws org.mule.module.ldap.api.NoPermissionException If the current binded user has no permissions to perform the search under the given base DN.
@@ -584,13 +589,15 @@ public class LDAPConnector
      */
     @Processor
     @InvalidateConnectionOn(exception = CommunicationException.class)
+    @Paged(defaultFetchSize=200)
     public PagingDelegate<LDAPEntry> search(@FriendlyName("Base DN") String baseDn, String filter, @Optional List<String> attributes,
                                   @Optional @Default("ONE_LEVEL") SearchScope scope, @Optional @Default("0") @Placement(group = "Search Controls") int timeout,
                                   @Optional @Default("0") @Placement(group = "Search Controls") long maxResults,
                                   @Optional @Default("false") @Placement(group = "Search Controls") boolean returnObject,
                                   @Optional @Default("0") @Placement(group = "Search Controls") int pageSize,
                                   @FriendlyName("Order by attribute") @Optional @Placement(group = "Search Controls", order = 1) String orderBy,
-                                  @FriendlyName("Ascending order?") @Optional @Default("true") @Placement(group = "Search Controls", order = 2) boolean ascending) throws Exception
+                                  @FriendlyName("Ascending order?") @Optional @Default("true") @Placement(group = "Search Controls", order = 2) boolean ascending,
+                                  PagingConfiguration pagingConfiguration) throws Exception
     {
         LDAPResultSet result = null;
         
@@ -875,7 +882,7 @@ public class LDAPConnector
         
         if(results != null && results.size() > 1)
         {
-            logger.warn("Search returned more than one result. Total results matching filter [" + filter + "]: " + results.size());
+            logger.warn("Search returned more than one result. Total results under [" + baseDn + "] matching filter [" + filter + "]: " + results.size());
         }
         
         return results != null && results.size() > 0 ? results.get(0) : null;
@@ -1246,6 +1253,11 @@ public class LDAPConnector
         try
         {
             this.connection.addAttribute(dn, new LDAPSingleValueEntryAttribute(attributeName, attributeValue));
+            
+            if(logger.isInfoEnabled())
+            {
+                logger.info("Added attribute " + attributeName + " with value " + attributeValue + " to entry " + dn);
+            }            
         }
         catch(InvalidAttributeException iaex)
         {
@@ -1258,11 +1270,6 @@ public class LDAPConnector
                 logger.info("Ignoring attribute addition. " + iaex.getMessage());
             }
         }
-        
-        if(logger.isInfoEnabled())
-        {
-            logger.info("Added attribute " + attributeName + " with value " + attributeValue + " to entry " + dn);
-        }           
     }
     
     /**
@@ -1295,6 +1302,11 @@ public class LDAPConnector
         try
         {
             this.connection.addAttribute(dn, new LDAPMultiValueEntryAttribute(attributeName, attributeValues));
+            
+            if(logger.isInfoEnabled())
+            {
+                logger.info("Added attribute " + attributeName + " with values " + attributeValues + " to entry " + dn);
+            }  
         }
         catch(InvalidAttributeException iaex)
         {
@@ -1307,11 +1319,6 @@ public class LDAPConnector
                 logger.info("Ignoring attribute addition. " + iaex.getMessage());
             }
         }
-    
-        if(logger.isInfoEnabled())
-        {
-            logger.info("Added attribute " + attributeName + " with values " + attributeValues + " to entry " + dn);
-        }         
     }
 
     /**
@@ -1345,6 +1352,11 @@ public class LDAPConnector
         try
         {
             this.connection.updateAttribute(dn, new LDAPSingleValueEntryAttribute(attributeName, attributeValue));
+            
+            if(logger.isInfoEnabled())
+            {
+                logger.info("Updated attribute " + attributeName + " with value " + attributeValue + " to entry " + dn);
+            } 
         }
         catch(InvalidAttributeException iaex)
         {
@@ -1356,12 +1368,7 @@ public class LDAPConnector
             {
                 logger.info("Ignoring attribute modification. " + iaex.getMessage());
             }
-        }
-        
-        if(logger.isInfoEnabled())
-        {
-            logger.info("Updated attribute " + attributeName + " with value " + attributeValue + " to entry " + dn);
-        }         
+        }        
     }
     
     /**
@@ -1392,6 +1399,11 @@ public class LDAPConnector
         try
         {
             this.connection.updateAttribute(dn, new LDAPMultiValueEntryAttribute(attributeName, attributeValues));
+            
+            if(logger.isInfoEnabled())
+            {
+                logger.info("Modified attribute " + attributeName + " with values " + attributeValues + " to entry " + dn);
+            }
         }
         catch(InvalidAttributeException iaex)
         {
@@ -1403,11 +1415,6 @@ public class LDAPConnector
             {
                 logger.info("Ignoring attribute modification. " + iaex.getMessage());
             }
-        }
-        
-        if(logger.isInfoEnabled())
-        {
-            logger.info("Modified attribute " + attributeName + " with values " + attributeValues + " to entry " + dn);
         }          
     }
     
@@ -1442,6 +1449,18 @@ public class LDAPConnector
         try
         {
             this.connection.deleteAttribute(dn, new LDAPSingleValueEntryAttribute(attributeName, attributeValue));
+
+            if(logger.isInfoEnabled())
+            {
+                if(attributeValue != null && attributeValue.length() > 0)
+                {
+                    logger.info("Deleted value " + attributeValue + " from attribute " + attributeName + " from entry " + dn);
+                }
+                else
+                {
+                    logger.info("Deleted attribute " + attributeName + " from entry " + dn);
+                }
+            }            
         }
         catch(InvalidAttributeException iaex)
         {
@@ -1454,18 +1473,6 @@ public class LDAPConnector
                 logger.info("Ignoring attribute deletion. " + iaex.getMessage());
             }
         }        
-        if(logger.isInfoEnabled())
-        {
-            if(attributeValue != null && attributeValue.length() > 0)
-            {
-                logger.info("Deleted value " + attributeValue + " from attribute " + attributeName + " from entry " + dn);
-            }
-            else
-            {
-                logger.info("Deleted attribute " + attributeName + " from entry " + dn);
-            }
-        }          
-        
     }
 
     /**
@@ -1496,6 +1503,11 @@ public class LDAPConnector
         try
         {
             this.connection.deleteAttribute(dn, new LDAPMultiValueEntryAttribute(attributeName, attributeValues));
+            
+            if(logger.isInfoEnabled())
+            {
+                logger.info("Deleted values " + attributeValues + " from attribute " + attributeName + " on entry " + dn);
+            } 
         }
         catch(InvalidAttributeException iaex)
         {
@@ -1507,12 +1519,7 @@ public class LDAPConnector
             {
                 logger.info("Ignoring attribute deletion. " + iaex.getMessage());
             }
-        }
-        
-        if(logger.isInfoEnabled())
-        {
-            logger.info("Deleted values " + attributeValues + " from attribute " + attributeName + " on entry " + dn);
-        }          
+        }         
     }
     
     // Transformers

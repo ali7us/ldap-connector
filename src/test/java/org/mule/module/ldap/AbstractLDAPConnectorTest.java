@@ -11,9 +11,14 @@ package org.mule.module.ldap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 import org.mule.api.MessagingException;
 import org.mule.api.MuleEvent;
 import org.mule.construct.Flow;
+import org.mule.module.ldap.api.LDAPEntry;
 import org.mule.tck.junit4.FunctionalTestCase;
 
 public abstract class AbstractLDAPConnectorTest extends FunctionalTestCase
@@ -74,5 +79,17 @@ public abstract class AbstractLDAPConnectorTest extends FunctionalTestCase
                // Support for mule 3.3.x
                return ex.getCause();
            }
+       }
+       
+       protected List<LDAPEntry> iteratorToList(Iterator<LDAPEntry> iterator)
+       {
+           List<LDAPEntry> list = new ArrayList<LDAPEntry>();
+           
+           while(iterator.hasNext())
+           {
+               list.add(iterator.next());
+           }
+           
+           return list;
        }
 }

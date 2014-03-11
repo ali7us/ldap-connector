@@ -51,6 +51,7 @@ public class LDAPException extends Exception
         EX_MAPPINGS.put(javax.naming.ContextNotEmptyException.class, ContextNotEmptyException.class);
         EX_MAPPINGS.put(javax.naming.ServiceUnavailableException.class, CommunicationException.class);
         EX_MAPPINGS.put(javax.naming.directory.NoSuchAttributeException.class, InvalidAttributeException.class);
+        EX_MAPPINGS.put(javax.naming.OperationNotSupportedException.class, LDAPException.class);
         // Cause reconnection with any unrecognized exception (For example read time out)
         EX_MAPPINGS.put(javax.naming.NamingException.class, CommunicationException.class);
     }

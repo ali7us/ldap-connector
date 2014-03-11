@@ -52,7 +52,7 @@
 	</flow>
 
     <flow name="testSearchMaxResultsFlow">
-    	<ldap:search config-ref="adminConf" baseDn="dc=mulesoft,dc=org" filter="(uid=user*)" maxResults="#[payload:]"  scope="SUB_TREE"/>
+    	<ldap:search config-ref="adminConf" baseDn="dc=mulesoft,dc=org" filter="(uid=user*)" maxResults="#[payload:]" scope="SUB_TREE"/>
 	</flow>
 
     <flow name="testSearchFlow">

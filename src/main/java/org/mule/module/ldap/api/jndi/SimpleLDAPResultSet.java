@@ -32,6 +32,8 @@ public class SimpleLDAPResultSet implements LDAPResultSet
     private NamingEnumeration<SearchResult> entries = null;
     private String baseDn = null;
     private LDAPSearchControls controls = null;
+
+    private boolean sizeLimitExceeded = false;
     
     /**
      * 
@@ -53,11 +55,12 @@ public class SimpleLDAPResultSet implements LDAPResultSet
     {
         try
         {
-            return this.entries != null ? this.entries.hasMore() : false;
+            return !this.sizeLimitExceeded && this.entries != null ? this.entries.hasMore() : false;
         }
         catch(SizeLimitExceededException slee)
         {
             logger.warn("Size limit exceeded. Max results is: " + this.controls.getMaxResults(), slee);
+            this.sizeLimitExceeded = true;
             return false;
         }
         catch(NamingException nex)

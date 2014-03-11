@@ -13,6 +13,15 @@
 	<ldap:config name="ldapConf" url="ldap://dc1.company.com:389/" authDn="user@company.com" authPassword="secret"/>
 <!-- END_INCLUDE(ldap:config-3) -->
 
+<!-- BEGIN_INCLUDE(ldap:config-4) -->
+	<!-- Case 4: LDAPS with self-signed certificate -->
+	<ldap:config name="ldapConf" url="ldaps://dc1.company.com:636/" authDn="uid=admin,ou=people,dc=mulesoft,dc=org" authPassword="secret">
+        <ldap:extended-configuration>
+            <ldap:extended-configuration key="java.naming.ldap.factory.socket">org.mule.module.ldap.security.BypassTrustSSLSocketFactory</ldap:extended-configuration>
+        </ldap:extended-configuration>
+  	</ldap:config>	
+<!-- END_INCLUDE(ldap:config-4) -->
+
 <!-- BEGIN_INCLUDE(ldap:bind-1) -->
 	<!-- Case 1: Using Config Credentials -->
 	<ldap:bind config-ref="ldapConf"/>

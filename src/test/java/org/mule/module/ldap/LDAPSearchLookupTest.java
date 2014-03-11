@@ -14,6 +14,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.junit.Test;
@@ -48,9 +49,11 @@ public class LDAPSearchLookupTest extends AbstractLDAPConnectorEmbeddedLDAPTest
     @Test
     public void testAdminSearch() throws Exception
     {
-        @SuppressWarnings("unchecked")
-        List<LDAPEntry> result = (List<LDAPEntry>) runFlow("testAdminFlow", "(ou=people)").getMessage().getPayload();
+        Iterator<LDAPEntry> resultIterator = (Iterator<LDAPEntry>) runFlow("testAdminFlow", "(ou=people)").getMessage().getPayload();
+        
+        List<LDAPEntry> result = iteratorToList(resultIterator);
 
+        
         assertEquals(5, result.size());
         
         for(LDAPEntry entry : result)
@@ -64,8 +67,8 @@ public class LDAPSearchLookupTest extends AbstractLDAPConnectorEmbeddedLDAPTest
     @Test
     public void testSearchMaxResults() throws Exception
     {
-        @SuppressWarnings("unchecked")
-        List<LDAPEntry> result = (List<LDAPEntry>) runFlow("testSearchMaxResultsFlow", "2").getMessage().getPayload();
+        Iterator<LDAPEntry> resultIterator = (Iterator<LDAPEntry>)  runFlow("testSearchMaxResultsFlow", "2").getMessage().getPayload();
+        List<LDAPEntry> result = iteratorToList(resultIterator);
         
         assertEquals(2, result.size());
     }

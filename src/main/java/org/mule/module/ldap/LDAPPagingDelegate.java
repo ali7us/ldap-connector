@@ -1,13 +1,10 @@
-/*
- * $Id$
- * --------------------------------------------------------------------------------------
- * Copyright (c) MuleSource, Inc.  All rights reserved.  http://www.mulesource.com
+/**
+ * Copyright (c) MuleSoft, Inc. All rights reserved. http://www.mulesoft.com
  *
  * The software in this package is published under the terms of the CPAL v1.0
  * license, a copy of which has been included with this distribution in the
- * LICENSE.txt file.
+ * LICENSE.md file.
  */
-
 package org.mule.module.ldap;
 
 import java.util.ArrayList;
@@ -21,7 +18,12 @@ import org.mule.streaming.PagingDelegate;
 
 public class LDAPPagingDelegate extends PagingDelegate<LDAPEntry>
 {
+    private static final int PAGING_DEFAULT_PAGE_SIZE = 200;
+    
     private LDAPResultSet rs = null;
+    /*
+     * PageSize <= 0 indicates that the page will 
+     */
     private int pageSize = -1;
     
     /**
@@ -30,7 +32,8 @@ public class LDAPPagingDelegate extends PagingDelegate<LDAPEntry>
     public LDAPPagingDelegate(LDAPResultSet rs, int pageSize)
     {
         this.rs = rs;
-        this.pageSize = pageSize;
+        // If LDAP paging is enabled, then use it. If not, just use a default page size
+        this.pageSize = pageSize > 0 ? pageSize : PAGING_DEFAULT_PAGE_SIZE;
     }
 
     @Override
